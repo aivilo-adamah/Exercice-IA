@@ -1,0 +1,30 @@
+_
+
+# fonction pour afficher l'arbre
+def afficher_arbre(noeud : Noeud):
+    if noeud is not None:
+        afficher_arbre(noeud.noeud_droit)
+        afficher_arbre(noeud.noeud_gauche)                                                        
+
+
+
+# test  phrases “si ton tonton tond mon tonton” et “un chasseur sachant chasser”
+    phrase1 = "si ton tonton tond mon tonton"
+    phrase2 = "un chasseur sachant chasser"
+    dic_occurrence = compter_occurrences(phrase1)
+
+    arbre = construire_arbre(dic_occurrence)
+    afficher_arbre(arbre)
+    
+
+
+
+
+
+
+
+
+
+    
+
+    
