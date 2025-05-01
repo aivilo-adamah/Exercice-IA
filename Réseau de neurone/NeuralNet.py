@@ -25,8 +25,8 @@ class NeuralNet:
       
       self.weights = [None] * (self.n_layers + 1) # +1: output layer
       self.biases  = [None] * (self.n_layers + 1)
-      self.Z       = [None] * (self.n_layers + 1)
-      self.A       = [None] * (self.n_layers + 1)
+      self.Z       = [None] * (self.n_layers + 2)
+      self.A       = [None] * (self.n_layers + 2)
       self.df      = [None] * (self.n_layers + 1)
       
       self.hidden_layer_sizes = hidden_layer_sizes # To later determine
@@ -60,18 +60,23 @@ class NeuralNet:
       return None
     
     def fit(self, X_train, y_train, X_val=None, y_val=None, val=0.2):
+
+      # Initialisation
       if not self.has_trained:
         self.__weights_initialization(X_train, y_train)
-      
+
+      # Création d'un ensemble de validation
       if X_val is None:
         X_train, X_val, y_train, y_val = \
           train_test_split(X_train, y_train, test_size=val, random_state=42)
-      
+        
+      # Initialisation des listes d'erreur
       epoch_train_error = []
       epoch_val_error  = []
       
+
       for e in range(0, self.n_epoch):
-          ave_train_error = 0
+          ave_train_error = 0 # moyenne d'erreur pendant l'époque
           batch_train_error = []
           processed_batch = 0
           
@@ -100,7 +105,8 @@ class NeuralNet:
           # Validation error
           val_error = self.__feed_forward(X_val.transpose(), y_val.transpose())[0]
           epoch_val_error.append(val_error)
-          
+
+          #  Affichage toutes les 10 époques
           if e % 10 == 0:
               print("* Epoch " + str(e) + " -- Error :   Train : " + \
                     "{:.4f}".format(ave_train_error) + "    Validation : "+ \
@@ -124,12 +130,27 @@ class NeuralNet:
       return None
     
     def predict(self, X_batch):
+
       """
       Compute the output for instances in X_batch
       Returns: output probabilities
       """
-      propabilities = None # TODO
-      return probabilities
+      # TODO
+      A = X_batch.T  # Transpose to align dimensions with training (features x samples)
+
+      for l in range(0, self.n_layers):
+        Z = np.dot(self.weights[l], A) + self.biases[l]
+        A = self.activation(Z)[0]  # Activation returns (activated_output, derivative)
+
+
+      # Output layer with softmax
+      Z_out = np.dot(self.weights[self.n_layers], A) + self.biases[self.n_layers]
+      probabilities = Utility.softmax(Z_out)  # Output final probabilities
+
+      return probabilities.T  # Return in original sample order
+        
+
+
     
     def __feed_forward(self, X_batch, y_batch=None):
       """
@@ -142,18 +163,39 @@ class NeuralNet:
       Returns:
         model error on batch, output probabilities
       """
-      A = X_batch
+
       
       # Feed input signal through the hidden layers
       # TODO
-      
+      self.A[0] = X_batch  # Stocker les entrées dans A[0]
+
+      for l in range(0, self.n_layers):
+        self.Z[l] = np.dot(self.weights[l], self.A[l]) + self.biases[l]
+        self.A[l+1], self.df[l] = self.activation(self.Z[l])  # activation() retourne (A, dérivée)
+
+
       # Compute the output
       # TODO
+
+      l_out = self.n_layers
+      self.Z[l_out] = np.dot(self.weights[l_out], self.A[l_out]) + self.biases[l_out]
+      self.A[l_out+1] = Utility.softmax(self.Z[l_out])
+
+      predictions = self.A[l_out+1]  # Probabilités de sortie
   
       # Compute the error
       # TODO
       
+      if y_batch is not None:
+        error = Utility.cross_entropy_cost(predictions, y_batch)
+      else:
+          error = None
+
       return error, predictions
+    
+
+
+
     
     def __backward_pass(self, X_batch, y_batch, epoch):
       """
@@ -173,12 +215,26 @@ class NeuralNet:
       
       # Error on output layer
       # TODO
-      
+      l_out = self.n_layers
+      delta[l_out] = self.A[l_out + 1] - y_batch  # output error (softmax + cross-entropy)
+
+      dW[l_out] = np.dot(delta[l_out], self.A[l_out].T) / X_batch.shape[1]
+      db[l_out] = np.mean(delta[l_out], axis=1, keepdims=True)
+          
       # Backpropagate the error in the hidden layers
       # TODO
+
+      for l in reversed(range(self.n_layers)):
+        delta[l] = np.dot(self.weights[l+1].T, delta[l+1]) * self.df[l]
+
+        dW[l] = np.dot(delta[l], self.A[l].T) / X_batch.shape[1]
+        db[l] = np.mean(delta[l], axis=1, keepdims=True)
       
       # Update the parameters
       # TODO
+      for l in range(self.n_layers + 1):
+        self.weights[l] -= self.learning_rate * dW[l]
+        self.biases[l] -= self.learning_rate * db[l]
       
       return None
     
